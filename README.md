@@ -1,3 +1,3 @@
 # reactivities
 
-.Net Core, React (with Typescript), Mobx Project
+.Net Core (CQRS Pattern), React (with Typescript), Mobx Project

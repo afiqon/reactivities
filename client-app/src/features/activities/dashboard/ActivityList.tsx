@@ -1,53 +1,22 @@
-import React from "react";
-import { Item, Image, Button, Label, Segment } from "semantic-ui-react";
-import { IActivity } from "../../../app/models/activity";
+import React, { useContext } from "react";
+import { Item, Button, Label, Segment } from "semantic-ui-react";
+import { observer } from "mobx-react-lite";
+import ActivityStore from '../../../app/stores/activityStore';
+import { Link } from "react-router-dom";
+import ActivityListItem from "./ActivityListItem";
 
-interface IProps {
-  activities: IActivity[];
-  selectActivity: (id: string) => void;
-  deleteActivity: (id: string) => void;
-}
-
-const ActivityList: React.FC<IProps> = ({
-  activities,
-  selectActivity,
-  deleteActivity
-}) => {
+const ActivityList: React.FC = () => {
+  const activityStore = useContext(ActivityStore);
+  const {activitiesByDate, deleteActivity, submitting, target} = activityStore;
   return (
     <Segment clearing>
       <Item.Group divided>
-        {activities.map(activity => (
-          <Item key={activity.id}>
-            <Item.Content>
-              <Item.Header as="a">{activity.date}</Item.Header>
-              <Item.Meta>Date</Item.Meta>
-              <Item.Description>
-                <div>{activity.description}</div>
-                <div>
-                  {activity.city}, {activity.venue}
-                </div>
-              </Item.Description>
-              <Item.Extra>
-                <Button
-                  onClick={() => selectActivity(activity.id)}
-                  floated="right"
-                  content="View"
-                  color="blue"
-                />
-                <Button
-                  onClick={() => deleteActivity(activity.id)}
-                  floated="right"
-                  content="Delete"
-                  color="red"
-                />
-                <Label basic content={activity.category} />
-              </Item.Extra>
-            </Item.Content>
-          </Item>
+        {activitiesByDate.map(activity => (
+          <ActivityListItem key={activity.id} activity={activity} />
         ))}
       </Item.Group>
     </Segment>
   );
 };
 
-export default ActivityList;
+export default observer(ActivityList);

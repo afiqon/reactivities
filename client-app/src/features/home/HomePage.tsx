@@ -28,7 +28,7 @@ const HomePage = () => {
               inverted
               content={`Welcome back ${user.displayName}`}
             />
-            <Button as={Link} to='/login' size='huge' inverted>
+            <Button as={Link} to='/activities' size='huge' inverted>
               Go to activities
             </Button>
           </Fragment>

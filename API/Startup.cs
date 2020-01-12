@@ -4,11 +4,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using API.Middleware;
+using API.SignalR;
 using Application.Activities;
 using Application.Interfaces;
+using Application.Profiles;
 using AutoMapper;
 using Domain;
 using FluentValidation.AspNetCore;
+using Infrastucture.Photos;
 using Infrastucture.Security;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -41,7 +44,7 @@ namespace API
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddDbContext<DataContext>(opt => 
+            services.AddDbContext<DataContext>(opt =>
             {
                 opt.UseLazyLoadingProxies();
                 opt.UseSqlite(Configuration.GetConnectionString("DefaultConnection"));
@@ -50,11 +53,13 @@ namespace API
             {
                 opt.AddPolicy("CorsPolicy", policy =>
                 {
-                   policy.AllowAnyHeader().AllowAnyMethod().WithOrigins("http://localhost:3000");
+                    policy.AllowAnyHeader().AllowAnyMethod()
+                    .WithOrigins("http://localhost:3000").AllowCredentials();
                 });
             });
             services.AddMediatR(typeof(List.Handler).Assembly);
             services.AddAutoMapper(typeof(List.Handler));
+            services.AddSignalR();
             services.AddMvc(opt =>
             {
                 var policy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build();
@@ -70,7 +75,7 @@ namespace API
 
             services.AddAuthorization(opt =>
             {
-                opt.AddPolicy("IsActivityHost", policy => 
+                opt.AddPolicy("IsActivityHost", policy =>
                 {
                     policy.Requirements.Add(new IsHostRequirement());
                 });
@@ -79,7 +84,7 @@ namespace API
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["TokenKey"]));
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                .AddJwtBearer(opt => 
+                .AddJwtBearer(opt =>
                 {
                     opt.TokenValidationParameters = new TokenValidationParameters
                     {
@@ -88,10 +93,26 @@ namespace API
                         ValidateAudience = false,
                         ValidateIssuer = false
                     };
+                    opt.Events = new JwtBearerEvents
+                    {
+                        OnMessageReceived = context =>
+                        {
+                            var accessToken = context.Request.Query["access_token"];
+                            var path = context.HttpContext.Request.Path;
+                            if (!string.IsNullOrEmpty(accessToken) && (path.StartsWithSegments("/chat")))
+                            {
+                                context.Token = accessToken;
+                            }
+                            return Task.CompletedTask;
+                        }
+                    };
                 });
 
             services.AddScoped<IJwtGenerator, JwtGenerator>();
             services.AddScoped<IUserAccessor, UserAccessor>();
+            services.AddScoped<IPhotoAccessor, PhotoAccessor>();
+            services.AddScoped<IProfileReader, ProfileReader>();
+            services.Configure<CloudinarySettings>(Configuration.GetSection("Cloudinary"));
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -111,6 +132,7 @@ namespace API
             // app.UseHttpsRedirection();
             app.UseAuthentication();
             app.UseCors("CorsPolicy");
+            app.UseSignalR(routes => { routes.MapHub<ChatHub>("/chat"); });
             app.UseMvc();
         }
     }
